@@ -3,13 +3,14 @@
 Real-time transaction fraud detection, built and evaluated on the public
 [PaySim](https://www.kaggle.com/datasets/mtalaltariq/paysim-data) dataset.
 
-Three small FastAPI services share one SQLite database:
+Three small FastAPI services share one SQLite database, and an nginx container serves a dashboard on top:
 
 | Service | Port | Endpoints | Role |
 |---|---|---|---|
 | `ingestion/` | 8000 | `POST /transactions` | dedupes, computes account features, calls scoring, stores the result |
 | `scoring/` | 8001 | `POST /score` | rules + ML model, returns a score, flag, and reasons |
-| `alerting/` | 8002 | `GET /alerts` | lists flagged transactions, newest first |
+| `alerting/` | 8002 | `GET /alerts`, `GET /stats` | lists flagged transactions (newest first, optional `?limit=`), plus processed/flagged totals |
+| `dashboard/` | 8080 | static page | nginx serving a page that polls the alerting API every 5s |
 
 ## How scoring works
 
@@ -55,7 +56,7 @@ SCORING_SERVICE_URL=http://localhost:8001 uvicorn ingestion.main:app --port 8000
 uvicorn alerting.main:app --port 8002
 ```
 
-Or `docker-compose up --build` (the Docker setup has not been exercised against PaySim yet).
+Or `docker compose up --build`, then open http://localhost:8080 for the dashboard (run the replay below to populate it).
 
 Replay PaySim through the running system and see how many frauds it catches:
 

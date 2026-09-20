@@ -21,7 +21,7 @@ SCORING_SERVICE_URL=http://localhost:8001 uvicorn ingestion.main:app --port 8000
 uvicorn alerting.main:app --port 8002
 ```
 
-Run via Docker (not yet exercised against PaySim): `docker-compose up --build`
+Run via Docker (all four containers; dashboard at http://localhost:8080): `docker compose up --build`
 
 Run tests:
 ```
@@ -41,8 +41,9 @@ python scripts/replay_paysim.py --limit 5000
 
 ## Architecture
 
-- Each service is a top-level package with a `main.py` holding its endpoints: `ingestion/` (`POST /transactions`), `scoring/` (`POST /score`), `alerting/` (`GET /alerts`). Each also has a `/health` endpoint and its own Dockerfile.
-- `shared/` is imported by all three: `schemas.py` (Pydantic request/response models, including `TransactionIn`), `models.py` (SQLAlchemy `Transaction` table), `database.py` (engine, `init_db`, `DATABASE_URL`, default `data/fraud.db`).
+- Each service is a top-level package with a `main.py` holding its endpoints: `ingestion/` (`POST /transactions`), `scoring/` (`POST /score`), `alerting/` (`GET /alerts`, `GET /stats`). Each also has a `/health` endpoint and its own Dockerfile.
+- `dashboard/` is a fourth, static container (nginx serving `dashboard/index.html`) that polls the alerting service's `/stats` and `/alerts?limit=` from the browser. Because it runs on another origin, `alerting/main.py` enables CORS for `CORS_ORIGINS` (default `http://localhost:8080`). The page's API URL is the `API` constant in `index.html`.
+- `shared/` is imported by all three services: `schemas.py` (Pydantic request/response models, including `TransactionIn`), `models.py` (SQLAlchemy `Transaction` table), `database.py` (engine, `init_db`, `DATABASE_URL`, default `data/fraud.db`).
 - `ingestion/main.py` flow: existing-id lookup -> dedupe cache (`ingestion/dedupe.py`, in-memory TTL) -> `ingestion/features.py` account features -> `ingestion/scoring_client.py` HTTP call to scoring -> persist. A scoring outage returns 503.
 - `ingestion/features.py` computes velocity windows from the PaySim `step` (one step = one simulated hour) when the transaction has one, otherwise from wall-clock `created_at`.
 - `scoring/pipeline.py` combines `scoring/rules.py` and `scoring/ml_model.py` as `max(rule_score, ml_score)` with `FLAG_THRESHOLD = 0.6`. Averaging was rejected because a confident model would be diluted by quiet rules.

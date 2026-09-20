@@ -56,3 +56,9 @@ class TransactionOut(BaseModel):
     created_at: datetime
 
     model_config = ConfigDict(from_attributes=True)
+
+
+class Stats(BaseModel):
+    total: int
+    flagged: int
+    flag_rate: float
