@@ -1,0 +1,37 @@
+services:
+  scoring:
+    build:
+      context: .
+      dockerfile: scoring/Dockerfile
+    ports:
+      - "8001:8000"
+
+  ingestion:
+    build:
+      context: .
+      dockerfile: ingestion/Dockerfile
+    ports:
+      - "8000:8000"
+    depends_on:
+      - scoring
+    volumes:
+      - fraud-data:/app/data
+    environment:
+      - DATABASE_URL=sqlite:////app/data/fraud.db
+      - SCORING_SERVICE_URL=http://scoring:8000
+
+  alerting:
+    build:
+      context: .
+      dockerfile: alerting/Dockerfile
+    ports:
+      - "8002:8000"
+    depends_on:
+      - ingestion
+    volumes:
+      - fraud-data:/app/data
+    environment:
+      - DATABASE_URL=sqlite:////app/data/fraud.db
+
+volumes:
+  fraud-data:
